@@ -1,0 +1,34 @@
+- Types of NoSQL databases
+  - **Column database**
+    - Concepts 
+      - stores data by column rather than by row
+      - each row can have different columns
+      - columns are stored grouped together, not rows (this actually wrong, we can easily have data stored by row not by column e.g. See Facebook_Messenger_SystemDesign.md HBase based storage)
+      - column family - group of related columns (don't strictly hold also - see above)
+      - columns - key-value pair inside a row
+      - sparse storage - missing column takes no place (this is also weird thing, sparsity may have different semantic - see above again)
+      - add columns when needed, no fixed structure
+      - can scale horizontally to billions of rows across cluster
+    - Known DBs
+      - Cassandra
+      - HBase
+      - Google Bigtable
+  - **Key-Value database**
+    - Concepts
+      - key-value
+    - Known DBs
+      - Redis
+      - DynamoDB
+  - **Document databases**
+    - Concepts
+      - store JSON
+      - no schema / structure of stored documents
+    - Known DBs
+      - MongoDB
+      - Couchbase
+  - **Graph databases**
+    - Concepts
+      - Nodes + relationships
+      - Optimized for relationships and their traversals
+    - Known DBs
+      - Neo4j

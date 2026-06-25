@@ -54,7 +54,7 @@ Users can chat with both mobile phone & web site
   
 	<br>
 				 
-  - Consider a simple case of 1 server instance (for clarifying on flow scenario, and then we will extrapolate to heavy load design):
+  - Consider a simple case of 1 server instance (for clarity one flow scenario, and then we will extrapolate to heavy load design):
     - receive incoming message at server
     - deliver outgoing message
         
@@ -66,7 +66,7 @@ Users can chat with both mobile phone & web site
               	
       **push model**  
 					
-      With push model server communicates back to the client when the message gets avaailble. There are several options how this can be implemented, e.g. using *Websockets*, or the other way using *long polling* when on client request server holds the request open rather than returning empty result, and then server will reply back once new message got available for that user, yet another approach is *SSE (server sent events)*, which also suppose permanantly open connection to the client and messages being pushed back by server side. With SSE client will need to re-cock server request upon receipt of new delayed message, and same on timeout disconnection
+      With push model server communicates back to the client when the message gets available. There are several options how this can be implemented, e.g. using *Websockets*, or the other way using *long polling* when on client request server holds the request open rather than returning empty result, and then server will reply back once new message got available for that user, yet another approach is *SSE (server sent events)*, which also assumes permanently open connection to the client and messages being pushed back by server side. With SSE client will need to re-cock server request upon receipt of new delayed message, and same on timeout disconnection
 					
       So, selecting effective push model, it will work so that chat server instance will maintain open connections with active users. 
   
@@ -86,7 +86,7 @@ Users can chat with both mobile phone & web site
 			
   - Message delivery for offline user: 
                     
-  	We will adopt the general idea, that incoming message sent to offline user will be accepted and stored in DB by chat server, to be delivered once the target user returns online. That algorithm can be easily implemented with HDFS storage (as described in store section below) because it will translate in a single search-by-key request in the message store.
+  	We will adopt the general idea, that incoming message sent to offline user will be accepted and stored in DB by chat server, to be delivered once the recipient user returns online. That algorithm can be easily implemented with Hbase storage (as described in store section below) because it will translate in a single search-by-key request in the message store.
 
 	<br>
 					
@@ -94,13 +94,11 @@ Users can chat with both mobile phone & web site
 			
     For the storage we obviously can not use SQL or NoSQL system such as MongoDB, for one atomic action in our case is saving/retrieving a very short piece of data (message), while the amount of that requests is huge: 500M * 40 / 86400 = 20B / 86400 = 250K rps - this will be the load on DB, so unacceptable to scale up
 			
-    The suitable solution is to leverage a column-based distributed storage with memory-base fast cache, working with the following technique: each record store key (UserId) against the long series of columns (messages), and these are stored in memory being popped out to disk on buffer fill-up. This solutions are adopted by HDFS (Hadoop Distributed File System), which will deliver a great boost in performance of a back storage component. Other example of this type of storage is Google's BigTable.
+    The suitable solution is to leverage a column-based distributed storage with memory-base fast cache, working with the following technique: each record store key as chat ID (e.g. pair UserA_ID, UserB_ID) against the series of columns (messages) ordered by sequence number or chronologically, and these are stored in memory being popped out to disk on buffer fill-up. This solution is adopted by Hbase, which will deliver a great boost in performance of a back storage with sequential range scans fitting well with the requirement of fast retrieving of user conversation from the storage. Another example of this type of storage is Google's BigTable.
 			
-    At that, we will be keeping the list of user messages from all user peers, just in chronological order (which we can arrange using sequential message ID). Each message will feature attribute of Sender-UserId. When syncing messages in client application the client app will un-merge received messages across chats with corresponding parties (which is lightweight operation). Thus we will be keeping in-memory hot storage with the most fresh messages, the older one getting swapped to disk storage with HDFS. 
+    Also note that HBase supports short small updates and searches across the columns
 			
-    Also note that HBase supports short small updates and search across the columns
-			
-    Clients will be fetching messages to their side with a pagination technique using appropriate view window.
+    Clients will be fetching messages to their side with a pagination technique using corresponding view window.
 
 	<br>
 			
@@ -114,24 +112,61 @@ Users can chat with both mobile phone & web site
 
 ## Database schema
 
-HDFS (see considerations in HLD)
+We use a wide-column storage (HBase / BigTable-like) with log-structured storage model.
+
+Instead of traditional relational schema, data is organized as sorted key-value records.
 
 ## Data Sharding
 
-It's HDFS native support for distributed storage
-However if sharding would be required, the relevant approach will be to shard messages on the basis of UserId. This is due to the fact that the amount of users is huge, and even with uneven distribution of messages across users with that large user base, data balancing through shards will be smooth. Additional benefit with this sharding scheme is that all messages of given user are stored on one shard instance, so we can proceed with a single query.
+Sharding is handled natively by the underlying wide-column storage system (HBase / BigTable), which partitions data by row key ranges.
+
+Since our row key is **conversation_id**, data is distributed across regions based on conversation_id ranges.
+
+This ensures:
+- even distribution of load (large number of conversations)
+- horizontal scalability
+- efficient range scans within a single conversation (data locality), as well as data write (append)
+
 
 ## High-availability
 
-At application layer we support it by a redundant fleet of chat servers
+At application layer we support HA by a redundant fleet of chat servers
 
-With Load Balancing through the fleet of chat servers, our online service is going to be inherently highly available. When any instance goes down, we need client application to support instant reconnect, so the down time to be reduced to a minimum
+With Load Balancing through the fleet of chat servers, our online service is going to be inherently highly available. When any instance goes down, we need client application to support instant reconnect, so the downtime to be reduced to a minimum
 
 
 ## Performance
 
 Cache
-Caching messages with in-memory grid withing HDFS approach
+
+Caching is used to reduce read latency and offload the storage layer for frequently accessed data.
+
+We introduce an in-memory cache layer (e.g. Redis-like distributed cache) in front of the message storage.
+
+Caching strategy:
+
+- **Recent messages cache (per conversation_id):**
+  - store last N messages of active conversations
+  - serves most common access pattern (open chat → load recent history)
+
+- **Hot conversations:**
+  - conversations with high read/write activity are kept in cache
+  - reduces repeated range scans on storage layer
+
+- **Write-through / write-back strategy:**
+  - messages are written to storage first (source of truth)
+  - cache is updated asynchronously or in parallel
+
+- **Cache eviction:**
+  - LRU or TTL-based eviction for inactive conversations
+
+Cache keys are aligned with storage access pattern:
+- key: conversation_id
+- value: list of recent messages (ordered by message_id)
+
+This ensures that:
+- reads are fast (served from memory)
+- storage layer (HBase) is used mainly for long history and durability
 
 ## Consistency
 

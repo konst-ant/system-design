@@ -40,7 +40,7 @@ GET /search?q=<query>&page=<n> -> { results: [{doc_id, title, snippet, score}], 
 **Options considered:**
 - Full rebuild — simple, but can't run continuously at 100M docs/day; staleness and cost are unacceptable.
 - In-place mutation — fast to apply, but concurrent readers can see a torn/inconsistent index mid-write; needs heavy locking.
-- **LSM-style immutable segments + background merge — the pick:** writes never block reads; updates/deletes go through tombstones, not in-place edits; staleness is bounded by how often new segments commit.
+- **LSM-style (Log-Structured Merge) immutable segments + background merge — the pick:** writes never block reads; updates/deletes go through tombstones, not in-place edits; staleness is bounded by how often new segments commit.
 
 **Terms:**
 
@@ -89,6 +89,18 @@ GET /search?q=<query>&page=<n> -> { results: [{doc_id, title, snippet, score}], 
 Merge proceeds with Shard 1 + 2 only; the response is marked best-effort/partial rather than complete.
 
 **Correctness pitfall:** a partial result must be explicitly flagged (e.g. `partial: true`, adjusted `total_estimate`) — silently returning it as if every shard answered would corrupt pagination and make recall-quality regressions invisible to monitoring.
+
+### 5c. Ranking: When Each Signal Is Computed
+
+**Principle:** a document's final rank is never computed in one place — it's a **query-independent (static) component**, computed once at ingest time and stored with the doc, combined with a **query-dependent (dynamic) component**, which can only be computed at search time because it depends on what was actually typed. (We're only naming the categories of signal here, not their internals — those are a separate deep dive.)
+
+| Phase | What's computed | Example signal categories (not covering internals) |
+|---|---|---|
+| Ingest time (once per doc) | Static, query-independent score | authority/popularity, freshness, doc-quality |
+| Search time, per shard (local top-K, §5b) | Cheap combination: static score + query-term relevance | term-frequency/BM25-style relevance |
+| Search time, merge/re-rank (Ranking Service) | Expensive re-score of only the merged candidates | richer query-dependent + personalization signals |
+
+**How this is used at the gathering step:** each shard's "local top-K" in §5b *is* the cheap combination — the static score already sitting on the doc from ingest, plus a fast per-query relevance calculation — which is exactly why shard-local scoring stays cheap enough to fit the per-shard timeout. Only the much smaller merged candidate set then pays for the expensive, richer re-scoring in the Ranking Service.
 
 ## 6. Data Model
 

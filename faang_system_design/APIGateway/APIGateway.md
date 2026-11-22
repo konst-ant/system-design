@@ -78,6 +78,12 @@ ANY /{service}/{path} -> routed to backend service "{service}", with auth contex
 - Auth tokens verified locally (signature check) where possible, to avoid making the Auth Service a dependency on every single request.
 - Config/policy changes are cached locally with periodic refresh, same pattern as `RateLimiter.md` §4 — never a synchronous lookup per request.
 
-## 8. Wrap-up
+## 8. Sticky Sessions & Canary/Version Routing
 
-Delivered: a stateless, horizontally-scalable gateway with an explicit circuit-breaker design protecting both backends and the gateway's own latency budget during partial outages. Not covered due to time: full request/response transformation, canary/version routing policy details, and multi-region gateway deployment.
+**Sticky sessions:** the gateway stays stateless — it never stores session state itself. Instead, it hashes a stable key (session cookie or client ID) to deterministically pick the same backend instance for that key every time. If that instance goes down, the hash falls over to another instance and that request's local session cache is simply cold — an accepted trade-off, not a reason to make the gateway stateful.
+
+**Canary/version routing:** multiple backend versions run concurrently; the gateway routes a slice of traffic (by percentage, or by a header/cohort match) to the canary version using rules pulled from the Config Service (§4) — same cache-locally-refresh-periodically pattern as every other routing rule, not a per-request lookup. Shifting the rollout percentage is a config change, not a gateway redeploy.
+
+## 9. Wrap-up
+
+Delivered: a stateless, horizontally-scalable gateway with an explicit circuit-breaker design protecting both backends and the gateway's own latency budget during partial outages, plus sticky-session and canary-routing handling without sacrificing statelessness. Not covered due to time: full request/response transformation and multi-region gateway deployment.

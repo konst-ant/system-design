@@ -15,15 +15,15 @@
 
 ## 1. Distributed Systems & Infrastructure
 
-### 1. Design a Rate Limiter (Cloudflare, Redis)
+### 1. Design a Rate Limiter (Cloudflare, Redis) *
 
 Design a distributed rate-limiting service that controls how frequently users, applications or API clients can access a system. Support configurable policies such as requests per second, per minute or per user, with different limits for different clients and endpoints. Consider algorithms such as Token Bucket, Leaky Bucket and Sliding Window, and determine how limits are enforced consistently across multiple application instances. The system should handle high request throughput, low decision latency and bursts of traffic. Consider availability during failures, distributed state management and the operational cost of maintaining counters.
 
-### 2. Design an API Gateway (Kong, AWS API Gateway)
+### 2. Design an API Gateway (Kong, AWS API Gateway) *
 
 Design a central API entry point responsible for routing requests to multiple backend services. Support authentication, authorization, request validation, rate limiting, throttling, load balancing and API versioning. Consider how the gateway handles service discovery, backend failures, timeouts and retries. The system should support high throughput, low latency and horizontal scalability without becoming a single point of failure. Consider whether certain responsibilities belong in the gateway or in downstream services.
 
-### 3. Design a URL Shortener (Bitly, TinyURL)
+### 3. Design a URL Shortener (Bitly, TinyURL) *
 
 Design a service that converts long URLs into short, unique identifiers and redirects users to the original destinations. Support URL creation, redirection, optional expiration, custom aliases and basic analytics. Assume a large number of redirects compared with URL creation requests, potentially billions of stored mappings. Consider identifier generation, collision avoidance, caching, database partitioning and read/write traffic distribution. The redirection path should have very low latency and high availability.
 
@@ -35,7 +35,7 @@ Design a distributed caching platform that allows multiple application instances
 
 Design a distributed database that provides key-based reads and writes across multiple nodes. Support data partitioning, replication, configurable consistency guarantees and horizontal scaling. Assume a potentially massive dataset with high read/write throughput and nodes distributed across multiple availability zones. Consider partition-key selection, replication strategies, quorum operations, conflict resolution and node recovery. Explain the trade-offs between consistency, availability, latency and durability.
 
-### 6. Design a Distributed Message Queue (Kafka, RabbitMQ)
+### 6. Design a Distributed Message Queue (Kafka, RabbitMQ) 
 
 Design a messaging platform that enables producers to publish events and consumers to process them asynchronously. Support multiple topics or queues, message ordering, consumer groups, acknowledgements, retries and dead-letter handling. Assume high message throughput, potentially millions of messages per second across the platform, with varying message sizes and consumer processing speeds. Consider persistence, replication, partitioning, delivery guarantees and backpressure. Ensure the system can recover from broker failures without losing acknowledged messages.
 
@@ -63,15 +63,15 @@ Design a persistent message storage platform for a communication application tha
 
 ## 2. Search, Data Engineering & Discovery
 
-### 12. Design a Search Engine (Google, Bing)
+### 12. Design a Search Engine (Google, Bing) *
 
 Design a web search platform that indexes documents from multiple sources and returns relevant results for user queries. Support crawling or ingestion, document indexing, ranking, filtering and query execution. Assume billions of documents and a very large number of concurrent searches. Consider inverted indexes, distributed indexing, ranking signals, query partitioning, freshness and index updates. Search results should be returned with low latency while supporting continuous ingestion and index maintenance.
 
-### 13. Design a Web Crawler (Googlebot, Apache Nutch)
+### 13. Design a Web Crawler (Googlebot, Apache Nutch) *
 
 Design a distributed crawler that discovers and downloads web pages across the internet. Support URL discovery, deduplication, prioritisation, scheduling, robots.txt compliance and content extraction. Assume billions of URLs, a large number of crawler workers and websites with different response times and rate limits. Consider URL frontier management, politeness policies, retry handling, distributed coordination and crawl freshness. The system should scale horizontally while avoiding excessive load on external websites.
 
-### 14. Design a Search Autocomplete System (Google, Elasticsearch)
+### 14. Design a Search Autocomplete System (Google, Elasticsearch) *
 
 Design a service that suggests search queries while users type into a search box. Support prefix-based matching, popularity ranking, personalisation and potentially regional or language-specific suggestions. Assume millions of users generating a large volume of requests, with extremely low response-time requirements. Consider indexing strategies, prefix matching, caching, ranking and frequent updates to suggestion popularity. The system should provide useful results even under high concurrency and support continuous updates to its underlying data.
 
@@ -79,7 +79,7 @@ Design a service that suggests search queries while users type into a search box
 
 Design a platform that manages product information and enables customers to search and filter a large product catalogue. Support product attributes, categories, variants, pricing, availability, faceted filtering and sorting. Assume millions of products, frequent catalogue updates and high read traffic during shopping peaks. Consider the relationship between the transactional product database and search indexes, eventual consistency, indexing pipelines and query performance. Product information should remain reliable while search results are sufficiently fresh.
 
-### 16. Design a Real-Time Data Ingestion Pipeline (Apache Kafka, Apache Flink)
+### 16. Design a Real-Time Data Ingestion Pipeline (Apache Kafka, Apache Flink) 
 
 Design a distributed platform that ingests events from multiple producers and makes them available for downstream processing and analytics. Support high-volume streaming, event validation, schema evolution, buffering, partitioning and consumer subscriptions. Assume millions of events per second with variable payload sizes and unpredictable traffic spikes. Consider ordering, delivery guarantees, backpressure, late-arriving events, replay and fault recovery. The system should scale horizontally while maintaining predictable ingestion latency and data durability.
 
@@ -87,7 +87,7 @@ Design a distributed platform that ingests events from multiple producers and ma
 
 Design a centralised platform that collects logs and operational events from thousands of applications and infrastructure components. Support ingestion, structured and unstructured events, indexing, filtering, querying, retention and archival. Assume very high event volumes, potentially terabytes of data per day, with significant ingestion bursts. Consider buffering, compression, partitioning, indexing cost, retention tiers and query latency. Ensure that temporary downstream failures do not cause widespread log loss.
 
-### 18. Design a Metrics, Monitoring and Alerting Platform (Prometheus, Datadog)
+### 18. Design a Metrics, Monitoring and Alerting Platform (Prometheus, Datadog)    
 
 Design a platform that collects, stores and queries time-series metrics from distributed applications and infrastructure. Support metric ingestion, aggregation, dashboards, alert rules and notification delivery. Assume millions of active time series with frequent samples and multiple users querying historical and recent data. Consider cardinality management, storage compression, downsampling, retention, query efficiency and alert evaluation latency. The monitoring platform itself should remain available and reliable even during infrastructure incidents.
 
@@ -99,11 +99,11 @@ Design a platform that allows product teams to run controlled experiments by ass
 
 ## 3. Social Networks, Communication & Collaboration
 
-### 20. Design a News Feed System (Facebook, LinkedIn)
+### 20. Design a News Feed System (Facebook, LinkedIn) *
 
 Design a personalised feed that aggregates content from users, pages or other entities a person follows. Support content publishing, feed generation, ranking, pagination and updates as new content appears. Assume hundreds of millions of users, with highly unequal follower counts and a read-heavy workload. Consider push versus pull feed generation, fan-out strategies, caching, ranking and handling extremely popular accounts. Feed retrieval should be fast while balancing freshness, relevance and infrastructure cost.
 
-### 21. Design a Social Media Platform (Instagram, X)
+### 21. Design a Social Media Platform (Instagram, X) *
 
 Design a social networking platform where users can create profiles, publish posts, follow other users and interact through likes, comments and shares. Support media attachments, user relationships, privacy settings and content discovery. Assume hundreds of millions of users with high write volumes and significant traffic concentration around popular accounts or events. Consider storage, media delivery, feed integration, graph queries, consistency and abuse prevention. The platform should support continuous growth without degrading user-facing performance.
 
@@ -139,7 +139,7 @@ Design a platform that enables creators to broadcast live video to large audienc
 
 ## 5. Commerce, Payments & Financial Systems
 
-### 28. Design an E-Commerce Platform (Amazon, Shopify)
+### 28. Design an E-Commerce Platform (Amazon, Shopify) *
 
 Design an online shopping platform that supports product discovery, shopping carts, checkout, orders and order tracking. Integrate inventory, pricing, payment processing and fulfilment services. Assume millions of users, significant seasonal traffic spikes and a high read-to-write ratio for product browsing. Consider service boundaries, cart persistence, inventory consistency, checkout reliability and integration with external providers. The platform should prevent inconsistent orders and provide a reliable shopping experience even when individual downstream services fail.
 
@@ -175,7 +175,7 @@ Design a platform that monitors financial market prices and notifies users when 
 
 ## 6. Recommendations, Advertising & Personalisation
 
-### 36. Design a Recommendation System (Netflix, Amazon)
+### 36. Design a Recommendation System (Netflix, Amazon) *
 
 Design a platform that recommends content or products to users based on their interests, behaviour and historical interactions. Support candidate generation, ranking, personalisation, contextual signals and feedback collection. Assume millions of users and a large catalogue of items, with recommendations generated under strict latency requirements. Consider offline model training, online inference, feature storage, cold-start problems, freshness and experimentation. The system should balance relevance, diversity, computational cost and recommendation quality.
 
@@ -191,7 +191,7 @@ Design a music discovery service that recommends tracks, albums and playlists ba
 
 ## 7. File Storage & Developer Platforms
 
-### 39. Design a File Storage and Synchronisation Service (Dropbox, Google Drive)
+### 39. Design a File Storage and Synchronisation Service (Dropbox, Google Drive) *
 
 Design a cloud storage platform that allows users to upload, download, organise and synchronise files across multiple devices. Support large files, metadata, folder structures, sharing permissions, version history and concurrent modifications. Assume millions of users and potentially petabytes of stored data. Consider chunked uploads, object storage, deduplication, synchronisation protocols, conflict resolution and CDN delivery. The system should provide durable storage and reliable synchronisation despite intermittent client connectivity.
 

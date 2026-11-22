@@ -1,4 +1,4 @@
-# Recommendation System — System Design Solution
+        # Recommendation System — System Design Solution
 
 *Time-boxed to ~45–60 minutes. Diagrams: `RecommendationSystem_component.excalidraw`, `RecommendationSystem_sequence.excalidraw`.*
 

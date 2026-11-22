@@ -8,7 +8,7 @@ Design a system that lets users publish posts and generates a personalized feed 
 
 **In scope:** publish path, feed generation/fan-out strategy, feed read path, handling highly skewed follow graphs ("celebrity" accounts).
 
-**Explicitly deferred:** the ML ranking model itself (we use a simple recency+engagement heuristic and note where a model would plug in), likes/comments and their own counters/fan-out, media storage/CDN delivery, ads insertion. Each is a separate system worth its own session.
+**Explicitly deferred:** the ML ranking model itself (we use a simple recency+engagement heuristic and note where a model would plug in), likes and their own counter mechanics (see `SocialMediaPlatform.md` §5), media storage/CDN delivery, ads insertion. Each is a separate system worth its own session.
 
 ## 2. NFRs & Back-of-the-Envelope
 
@@ -72,6 +72,10 @@ GET  /feed?cursor=<cursor> -> {posts: [...], next_cursor}
 - **Cold feed cache** (new user, or cache evicted): fall back to an on-demand pull-and-merge across *all* of the user's follows — slower, but rare, so it doesn't need to be fast.
 - Consistency is intentionally eventual throughout — a follower might see a post a few seconds late; this matches the stated freshness NFR and isn't a bug to engineer away.
 
-## 8. Wrap-up
+## 8. Comments & Their Counters (Conceptual)
 
-Delivered: a hybrid push/pull fan-out design justified by an explicit capacity calculation, plus the merge-at-read step that makes it work. Not covered due to time: a real ranking model beyond the recency heuristic, like/comment counters and their own propagation, and media/ads delivery.
+Comments are stored as their own records keyed by `post_id` and never flow through the feed fan-out pipeline at all — they attach to the post, not to followers' feeds, so there's nothing to propagate the way a new post is propagated. A comment's visible count uses the same write-behind hot-counter pattern as `SocialMediaPlatform.md` §5: an atomic in-memory increment on write, flushed asynchronously into the durable Post Store. Viewing an up-to-date count is just reading the post record — it's a storage/counter concern, not a fan-out one.
+
+## 9. Wrap-up
+
+Delivered: a hybrid push/pull fan-out design justified by an explicit capacity calculation, plus the merge-at-read step that makes it work. Not covered due to time: a real ranking model beyond the recency heuristic, like counters, and media/ads delivery.

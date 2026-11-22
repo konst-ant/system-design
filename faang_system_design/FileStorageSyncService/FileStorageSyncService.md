@@ -8,7 +8,7 @@ Design a cloud storage platform that lets users upload, organize, and synchroniz
 
 **In scope:** chunked upload/storage, and — as the deep dive — multi-device sync conflict detection and resolution.
 
-**Explicitly deferred:** sharing/permissions logic, deduplication internals, folder-hierarchy metadata design. None change the conflict-resolution core.
+**Explicitly deferred:** sharing/permissions logic, deduplication internals. None change the conflict-resolution core.
 
 ## 2. NFRs & Back-of-the-Envelope
 
@@ -66,12 +66,20 @@ GET /files/{id} -> { version, chunks, metadata }
 - Chunk store: content-addressed `chunk_hash -> chunk_data` (dedup is automatic — identical content across files/users maps to the same chunk).
 - Conflicted copy: a regular file record, linked to the original `file_id` for UI grouping, but otherwise independent.
 
-## 7. Scaling, Failure & Trade-offs
+## 7. Folder Hierarchy Metadata
+
+**Principle:** folders are a flat table of nodes, each pointing to its parent (`parent_id`) — not a literal nested tree. This keeps "list children of folder X" cheap (indexed lookup by `parent_id`), and makes moves/renames O(1): moving a folder means updating just its own `parent_id`, never touching its descendants.
+
+- Node: `node_id, parent_id, name, type (file|folder), owner_id`.
+- Full path is reconstructed at read time by walking `parent_id` pointers up to the root — never stored as a string (a stored path would require rewriting every descendant on a rename).
+- **Pitfall:** a move must be rejected if it would make a node its own ancestor (a cycle) — a cheap ancestor-walk check before committing the new `parent_id`.
+
+## 8. Scaling, Failure & Trade-offs
 
 - Chunking + content-addressing means only the changed chunks of a large file need to be re-uploaded on a small edit, not the whole file — this is what makes the p99 < 1 s target achievable even for files that are themselves much larger.
 - A device that was offline for a long time doesn't need special-case recovery — it just presents a stale `base_version` on reconnect, and the normal conflict path handles it identically to a short offline gap.
 - Conflicted copies accumulate if users don't manually resolve them; this is an accepted UX trade-off (surface them clearly) rather than a reason to risk silent data loss by picking a different resolution strategy.
 
-## 8. Wrap-up
+## 9. Wrap-up
 
-Delivered: a version-vector-based conflict model that guarantees no edit is ever silently lost, with an explicit rejection of timestamp-based ordering. Not covered due to time: sharing/permissions, deduplication internals beyond content-addressing, and folder hierarchy metadata.
+Delivered: a version-vector-based conflict model that guarantees no edit is ever silently lost, with an explicit rejection of timestamp-based ordering, plus a flat parent-pointer model for folder hierarchy. Not covered due to time: sharing/permissions and deduplication internals beyond content-addressing.

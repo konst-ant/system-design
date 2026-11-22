@@ -40,15 +40,15 @@ Frontier entry: {url, domain, priority, next_allowed_fetch_time}
 
 **Options considered:**
 - Single global queue, any worker pulls any URL — simple to load-balance, but nothing stops two different workers from independently picking URLs for the same domain at the same moment, violating the politeness limit.
-- **Domain-sharded queues + shared per-domain timer — the pick:** URLs are partitioned by `hash(domain)` so all URLs for one domain route to the same shard; a worker must check and update that domain's `next_allowed_fetch_time` in a shared store before fetching.
+- **Domain-sharded queues + shared per-domain timer — the pick:** URLs are partitioned by `hash(domain)` so all URLs for one domain route to the same shard; a worker must check and update that domain's `next_allowed_fetch_time` in a shared store before fetching. A Redis Sorted Set (score = `next_allowed_fetch_time`, member = domain) is a good off-the-shelf fit — `ZRANGEBYSCORE`/`ZADD` give an atomic, shared "pop whichever domain is ready" primitive without building a custom heap.
 
 **Terms:**
 
 | Term | Meaning |
 |---|---|
-| Domain shard | Partition of the frontier holding all URLs for a set of domains — ensures one domain is never split across workers that don't coordinate. |
+| Domain shard | Partition of the frontier holding all URLs for a set of domains — ensures one domain is never split across workers that don't coordinate. One domain maps to exactly one shard, but many domains map to that same shard; many workers can still operate concurrently within it. |
 | Next-allowed-fetch-time | Shared timestamp per domain: the earliest moment any worker may fetch from it again. |
-| Re-queue with delay | If a domain's timer hasn't elapsed, the URL goes back into the frontier with a delay instead of being fetched immediately. |
+| Not due yet (skip) | If a domain's score (`next_allowed_fetch_time`) hasn't elapsed, the worker just leaves it in the priority set and checks the next-ready domain instead — no dequeue/requeue step, nothing moves. |
 | Back-off | Additional delay added to a domain's timer after receiving a 429/503 from that site. |
 
 **Worked timeline** (politeness = 1 req/sec/domain):
@@ -56,7 +56,7 @@ Frontier entry: {url, domain, priority, next_allowed_fetch_time}
 | Time | Event | Domain X's shared timer |
 |---|---|---|
 | t=0.0s | Worker 1 fetches a URL for domain X | sets next-allowed = t=1.0s |
-| t=0.3s | Worker 2 pulls a different URL for domain X, checks shared timer | 1.0s not yet reached → re-queues with a 0.7s delay, does **not** fetch |
+| t=0.3s | Worker 2 checks domain X's score in the priority set | 1.0s not yet reached → **not due yet**, skips it and checks the next-ready domain instead, does **not** fetch |
 | t=1.0s | Worker 3 pulls a URL for domain X, checks shared timer | 1.0s reached → fetches, sets next-allowed = t=2.0s |
 
 **Correctness pitfall:** the timer must live in a store every worker can see — if each worker instead cached its own *local* "last fetched domain X at..." value, two workers with no visibility into each other's activity could both decide it's safe to fetch simultaneously, exactly violating the 1 req/sec limit this design exists to enforce. (The same lesson as the Rate Limiter's local-cache-vs-source-of-truth distinction — here there's no local-cache fast path at all, because a domain is only ever handled by the one shard that owns it, so the "shared store" check is cheap enough to do on every fetch.)
@@ -64,8 +64,8 @@ Frontier entry: {url, domain, priority, next_allowed_fetch_time}
 ## 6. Data Model
 
 - Frontier entry: `url, domain, priority, next_allowed_fetch_time, discovered_at`.
-- Dedup store: `url_hash -> seen` (bloom filter for the common case, backed by an exact set for high-priority URLs where false positives are costlier).
-- Domain timer store: `domain -> next_allowed_fetch_time, consecutive_failure_count` (drives back-off).
+- Dedup store: `url_hash -> seen` (bloom filter for the common case, backed by an exact set for high-priority URLs where false positives are costlier). 
+- Domain timer store: `domain -> next_allowed_fetch_time, consecutive_failure_count` (drives back-off) — e.g. a Redis ZSET per shard, scored by `next_allowed_fetch_time`. A Kafka topic upstream of this (fed by the Parser) may be needed to buffer bursts of newly-discovered URLs before they reach a shard.
 
 ## 7. Scaling, Failure & Trade-offs
 
